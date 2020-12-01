@@ -1,0 +1,285 @@
+<div class="layui-fluid layui-anim febs-anim" id="febs-busLine" lay-title="百度地图">
+    <div class="layui-row layui-col-space8 febs-container">
+        <div class="layui-col-md7 layui-col-sm6 layui-col-xs12">
+            <div class="layui-card">
+                <div class="layui-card-body febs-table-full">
+                    <form class="layui-form layui-table-form" lay-filter="busLine-table-form" id="busLine-table-form">
+                        <div class="layui-row">
+                            <div class="layui-col-md9 layui-col-sm9 layui-col-xs9">
+                                <div class="layui-form-item">
+                                    <div class="layui-inline">
+                                        <label class="layui-form-label layui-form-label-sm">线路名称</label>
+                                        <div class="layui-input-inline">
+                                            <input type="text" name="name" autocomplete="off" class="layui-input">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="layui-col-md3 layui-col-sm12 layui-col-xs12 table-action-area">
+                                <div class="layui-btn layui-btn-sm layui-btn-primary febs-button-blue-plain  table-action" id="query">
+                                    <i class="layui-icon">&#xe848;</i>
+                                </div>
+                                <div class="layui-btn layui-btn-sm layui-btn-primary febs-button-green-plain  table-action" id="reset">
+                                    <i class="layui-icon">&#xe79b;</i>
+                                </div>
+                            </div>
+
+                            <div class="layui-col-md9 layui-col-sm9 layui-col-xs9">
+                                <div class="layui-form-item" >
+                                    <table id="stationList" style="margin-left: 50px; width: 300px; height: 500px; font-size: 20px;color: #01AAED;text-align: center">
+                                    </table>
+                                </div>
+                            </div>
+
+                        </div>
+                    </form>
+                    <table lay-filter="busLineTable" lay-data="{id: 'busLineTable'}"></table>
+                </div>
+            </div>
+        </div>
+
+        <div class="layui-col-md5 layui-col-sm6 layui-col-xs12">
+            <div class="layui-card">
+                <div class="layui-card-header" id="form-header">百度地图</div>
+                <div class="layui-card-body febs-table-full">
+                    <form class="layui-form layui-table-form" action="" lay-filter="busLine-form">
+
+                        <div id='container' style="height:90%;width:100%;padding-top: 720px"></div>
+<!--                        <div id='r-result' style=" position: fixed;top: 10px;right: 10px;z-index: 99;width: 250px;height: 450px;overflow-y: auto;background: #fff;box-shadow: 0 2px 6px 0 rgba(27, 142, 236, 0.5);border-radius: 7px;"></div>-->
+
+                        <div class="layui-form-item febs-hide">
+                            <button type="reset" class="layui-btn" id="reset-form"></button>
+                            <button class="layui-btn" lay-submit="" lay-filter="busLine-form-submit"
+                                    id="submit-form"></button>
+                        </div>
+                    </form>
+                </div>
+                <div class="layui-card-footer">
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+<script type="text/html" id="busLine-option">
+    <span shiro:lacksPermission="busLine:update,busLine:delete">
+        <span class="layui-badge-dot febs-bg-orange"></span> 无权限
+    </span>
+    <a lay-event="edit" shiro:hasPermission="busLine:update"><i class="layui-icon febs-edit-area febs-blue">&#xe7a4;</i></a>
+    <a lay-event="del" shiro:hasPermission="busLine:delete"><i class="layui-icon febs-edit-area febs-red">&#xe7f9;</i></a>
+</script>
+<script data-th-inline="none" type="text/javascript">
+    layui.use(['dropdown', 'jquery', 'laydate', 'febs', 'form', 'eleTree', 'table', 'validate','formSelects','transfer','util'], function () {
+        var $ = layui.jquery,
+            form = layui.form,
+            formSelects = layui.formSelects,
+            validate = layui.validate,
+            $view = $('#febs-busLine'),
+            $query = $view.find('#query'),
+            $reset = $view.find('#reset'),
+            $submit = $view.find('#submit'),
+            $searchForm = $view.find('#busLine-table-form'),
+            name = $("input[name='name']").val(),
+            tableIns;
+
+        form.verify(validate);
+        form.render();
+        formSelects.render();
+
+        //搜索用
+        $query.on('click', function () {
+            $.ajax({
+                url:"busLine/map/"+name,
+                type:"post",
+                data:"",
+                dataType:"json",
+                success:function (result) {
+                    point.length=0;
+                    for (var i = 0; i < result.length; i++) {
+                        point[i] = new BMapGL.Point(result[i].longitude,result[i].longitude);
+                        // a = point[i];
+                        // marker[i] = new BMapGL.Marker(point[i]);        // 创建标注
+                        // map.addOverlay(marker[i]);
+
+                    }
+                    ligature();
+                }
+            });
+        });
+
+        $reset.on('click', function () {
+            $searchForm[0].reset();
+            tableIns.reload({where: getQueryParams(), page: {curr: 1}});
+        });
+
+        $submit.on('click', function () {
+            $view.find('#submit-form').trigger('click');
+        });
+
+        var map = new BMapGL.Map("container");            // 创建Map实例
+        map.centerAndZoom(new BMapGL.Point(108.29723356,22.80649294), 12);
+        map.enableScrollWheelZoom(true);
+        var busline = new BMapGL.BusLineSearch(map,{
+            renderOptions:{map:map,panel:"r-result"},
+            onGetBusListComplete: function(result){
+                if(result) {
+                    var fstLine = result.getBusListItem(0);//获取第一个公交列表显示到map上
+                    busline.getBusLine(fstLine);
+                }
+            }
+        });
+        /*function busSearch(){
+            var busName = 1;
+            busline.getBusList(busName);
+        }*/
+        //点击获取经纬
+        /*map.addEventListener('click', function (e) {
+            alert('点击位置经纬度：' + e.latlng.lng + ',' + e.latlng.lat);
+        });*/
+        var busId = 2;
+        // var marker=new Array();//创建标注
+        var point = new Array();//创建点标记
+        var polyline;//连接折线
+        var infoWindow = new Array();//创建信息窗口
+        var curr_location;//当前站点
+        var lastId = "station0";
+        $.ajax({
+            url:"busLine/map/"+busId,
+            type:"post",
+            dataType:"json",
+            success:function (result) {
+                curr_location = result[0].name;//将当前站点设置为起始位置
+
+                for(var i=0;i<result.length;i++){
+                    //用返回的数据去创建表格
+                    var table = document.getElementById("stationList");
+                    var rowNum = table.rows.length;
+                    var row = table.insertRow(rowNum);
+                    var cell1 = row.insertCell(0);
+                    cell1.innerHTML =(i+1);
+                    var cell2 = row.insertCell(1);
+                    cell2.innerHTML ="<text id="+"station"+i+">"+result[i].name+"</text>";
+                    // alert(document.getElementById("station0").innerHTML);
+
+                    //
+                    point[i] = new BMapGL.Point(result[i].longitude,result[i].latitude);
+                    var mar = new BMapGL.Marker(new BMapGL.Point(result[i].longitude,result[i].latitude));  // 创建标注
+                    var cont = "当前公交车位于:";
+                    var opts = {width : 250,height: 80,title : result[i].name};// 信息窗口标题
+                    map.addOverlay(mar);               // 将标注添加到地图中
+                    addClickHandler(cont,opts,mar);
+                }
+                //为标注设置点击事件
+                function addClickHandler(cont,opts,mar){
+                    mar.addEventListener("click",function(e){
+                        var new_cont = cont+curr_location;
+                        openInfo(new_cont,e,opts)
+                    });
+                }
+                //信息窗口
+                function openInfo(cont,e,opts){
+                    var p = e.target;
+                    var poi = new BMapGL.Point(p.getPosition().lng, p.getPosition().lat);
+                    var infoWindows = new BMapGL.InfoWindow(cont,opts);  // 创建信息窗口对象
+                    map.openInfoWindow(infoWindows,poi); //开启信息窗口
+                }
+
+                ligature();
+                //获取表格中站点的id，
+                $(document).click(function (e) {
+                    var v_id = e.target.id;
+                    if(v_id.substr(0,3)=='sta'){//判断id是否“sta”开头
+                        document.getElementById(lastId).style.color="blue";//将上一个选中的站点文字颜色设置成蓝色
+                        document.getElementById(v_id).style.color="red";
+                        lastId = v_id;//获取上一个选中的id
+                        //发送请求得到id所对应的站点的坐标
+                        $.ajax({
+                            url:"busStation/getLocationByName/"+document.getElementById(v_id).innerHTML,
+                            type:"post",
+                            async:true,
+                            dataType:"json",
+                            success:function (re) {
+                                // alert("longitude:"+re["longitude"]+",latitude:"+re["latitude"]);
+                                //将选中的站点移到地图的中心位置
+                                if(re["longitude"] !=undefined&&re["latitude"]!=undefined)
+                                var new_point = new BMapGL.Point(re["longitude"],re["latitude"]);
+                                map.flyTo(new_point,18);
+                            }
+                        });
+
+                    }
+                });
+            }
+        });
+
+        //连接折线，
+        function ligature() {
+           polyline = new BMapGL.Polyline(point, {
+                strokeColor: 'blue',
+                strokeWeight: 2,
+                strokeOpacity: 0.5
+            });
+            map.addOverlay(polyline);
+
+            //百度自带线路查找
+            // var driving2 = new BMapGL.TransitRoute(map, {renderOptions:{map: map, autoViewport: true}});    //驾车实例
+            // driving2.search(point[0],point[2]);
+
+            //小车图片
+            var myIcon = new BMapGL.Icon("https://ccdn.goodq.top/caches/82fee4717198948d6253764710980ee2/aHR0cDovL3d3dy55M3EubmV0L3FmeS1jb250ZW50L3VwbG9hZHMvMjAyMC8xMS83NmUxMWQ1NDM5ZGQ0N2RjMGY4MzMzNWMyMTFlYzA1My0yMTB4MjEwLnBuZw_p_p100_p_3D_p_p100_p_3D.png", new BMapGL.Size(32, 70), {    //小车图片
+                //offset: new BMapGL.Size(0, -5),    //相当于CSS精灵
+                imageOffset: new BMapGL.Size(0, 0)    //图片的偏移量。为了是图片底部中心对准坐标点。
+            });
+
+            window.run = function (){
+                var driving = new BMapGL.TransitRoute(map);    //公交实例
+                driving.search(point[0], point[point.length-1]);
+                driving.setSearchCompleteCallback(function(){
+                    var paths = point.length;    //获得有几个点
+                    var carMk = new BMapGL.Marker(point[0],{icon:myIcon});
+                    map.addOverlay(carMk);
+                    i=0;
+                    function resetMkPoint(i){
+                        carMk.setPosition(point[i]);
+                        if(i < paths){
+                            setTimeout(function(){
+                                i++;
+                                if(i!=paths){
+                                    resetMkPoint(i);
+                                }
+                            },5000);
+                            //定时获取地址
+                            function time(){
+                                $.ajax({
+                                    type:"post",
+                                    url:"busLocation/getBusLocation/"+busId+"/"+point[i].lng+"/"+point[i].lat,
+                                    dataType:"json",
+                                    success:function(res){
+                                        curr_location= res["name"];
+                                        infoWindow[i] = new BMapGL.InfoWindow("当前位置距离站点："+res["name"]+" 还有"+res['distance']+"米,距离终点站还有"+(point.length-i-1)+"站。");
+                                        map.openInfoWindow(infoWindow[i],point[i]);
+                                    }
+                                })
+                            }
+                            // setInterval(time(),6000);
+                            setTimeout(function(){
+                                time();
+                            },100)
+                        }
+                    }
+                    setTimeout(function(){
+                        resetMkPoint(0);
+                    },100)
+
+                });
+            }
+            setTimeout(function(){
+                run();
+            // },5000);//原始设置
+            },1000);
+
+        }
+
+
+    });
+</script>
